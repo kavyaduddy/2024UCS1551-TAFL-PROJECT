@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Finite Automata Simulator</title>
+  <link rel="stylesheet" href="style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Syne:wght@400;700;800&display=swap" rel="stylesheet"/>
+</head>
+<body>
+
+  <header>
+    <div class="header-inner">
+      <div class="logo">
+        <span class="logo-icon">⟨Q,Σ,δ,q₀,F⟩</span>
+        <span class="logo-title">FA Simulator</span>
+      </div>
+      <div class="type-switch">
+        <button id="btn-dfa" class="switch-btn active" onclick="setType('DFA')">DFA</button>
+        <button id="btn-nfa" class="switch-btn" onclick="setType('NFA')">NFA</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="columns">
+
+      <!-- LEFT: Builder -->
+      <div class="panel" id="builder-panel">
+
+        <section class="card">
+          <div class="card-label">01 — States (Q)</div>
+          <div class="input-row">
+            <input type="text" id="state-input" placeholder="e.g. q0, q1 ..." maxlength="10"
+              onkeydown="if(event.key==='Enter')addState()" />
+            <button class="btn-add" onclick="addState()">Add</button>
+          </div>
+          <div class="tags" id="states-tags"></div>
+          <div class="sub-row">
+            <div class="sub-col">
+              <label class="field-label">Start state →</label>
+              <select id="start-select"
+                onchange="startState=this.value; rebuildTable(); drawGraph(); checkReady()">
+                <option value="">— none —</option>
+              </select>
+            </div>
+            <div class="sub-col">
+              <label class="field-label">Accept states ★</label>
+              <div class="mini-row">
+                <select id="accept-select"><option value="">— select —</option></select>
+                <button class="btn-sm" onclick="addAccepting()">+</button>
+              </div>
+              <div class="tags sm" id="accept-tags"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-label">02 — Alphabet (Σ)</div>
+          <div class="input-row">
+            <input type="text" id="sym-input" placeholder="e.g. 0, 1, a ..." maxlength="5"
+              onkeydown="if(event.key==='Enter')addSymbol()" />
+            <button class="btn-add" onclick="addSymbol()">Add</button>
+            <button class="btn-sm" id="eps-btn" style="display:none" onclick="addEpsilon()">ε</button>
+          </div>
+          <div class="tags" id="symbols-tags"></div>
+        </section>
+
+        <section class="card" id="trans-card" style="display:none">
+          <div class="card-label">03 — Transition Function (δ)</div>
+          <p class="hint" id="trans-hint"></p>
+          <div class="table-wrap">
+            <table id="trans-table"></table>
+          </div>
+        </section>
+
+      </div>
+
+      <!-- RIGHT -->
+      <div class="panel" id="sim-panel">
+
+        <!-- Graph -->
+        <section class="card" id="graph-card">
+          <div class="card-label">
+            Automaton Graph
+            <span class="graph-controls">
+              <button class="btn-graph" onclick="zoomIn()">+</button>
+              <button class="btn-graph" onclick="zoomOut()">−</button>
+              <button class="btn-graph" onclick="resetZoom()">⟳</button>
+            </span>
+          </div>
+          <div class="graph-wrap" id="graph-wrap">
+            <svg id="graph-svg">
+              <defs>
+                <marker id="arr-normal" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                  <polygon points="0 0,10 3.5,0 7" fill="#2a3347"/>
+                </marker>
+                <marker id="arr-active" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                  <polygon points="0 0,10 3.5,0 7" fill="#00c8ff"/>
+                </marker>
+                <marker id="arr-done" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                  <polygon points="0 0,10 3.5,0 7" fill="rgba(79,255,176,0.4)"/>
+                </marker>
+                <marker id="arr-dead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                  <polygon points="0 0,10 3.5,0 7" fill="#ff6b6b"/>
+                </marker>
+                <marker id="arr-accent" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                  <polygon points="0 0,10 3.5,0 7" fill="#4fffb0"/>
+                </marker>
+              </defs>
+              <g id="graph-root">
+                <g id="graph-edges"></g>
+                <g id="graph-nodes"></g>
+              </g>
+              <text id="graph-empty" x="50%" y="50%" text-anchor="middle"
+                dominant-baseline="central" class="graph-empty-txt">
+                Add states and transitions to see the graph
+              </text>
+            </svg>
+          </div>
+        </section>
+
+        <!-- Simulate -->
+        <section class="card">
+          <div class="card-label">04 — Simulate</div>
+          <div class="input-row">
+            <input type="text" id="input-string" placeholder="Input string, e.g. 0110" />
+            <button class="btn-primary" onclick="startSimulation()">Run</button>
+            <button class="btn-sm" onclick="resetSim()">Reset</button>
+          </div>
+          <p class="hint error-msg" id="sim-hint" style="display:none"></p>
+        </section>
+
+        <!-- Tape -->
+        <section class="card" id="tape-card" style="display:none">
+          <div class="card-label">Tape</div>
+          <div class="tape" id="tape"></div>
+          <div class="tape-legend">
+            <span class="legend-box lb-current"></span><span>Current</span>
+            <span class="legend-box lb-done"></span><span>Read</span>
+            <span class="legend-box lb-pending"></span><span>Pending</span>
+          </div>
+        </section>
+
+        <!-- Current States -->
+        <section class="card" id="states-card" style="display:none">
+          <div class="card-label" id="state-label-title">Current State</div>
+          <div class="cur-states" id="cur-states"></div>
+          <div class="step-info" id="step-info"></div>
+        </section>
+
+        <!-- Controls -->
+        <section class="card" id="controls-card" style="display:none">
+          <div class="card-label">Controls</div>
+          <div class="controls-row">
+            <button class="ctrl-btn" id="btn-back" onclick="stepBack()" disabled>← Back</button>
+            <button class="ctrl-btn primary" id="btn-fwd" onclick="stepFwd()">Next →</button>
+            <button class="ctrl-btn" onclick="runAll()">Run all</button>
+            <span class="step-count" id="step-count"></span>
+          </div>
+          <div class="result" id="result"></div>
+        </section>
+
+        <!-- History -->
+        <section class="card" id="history-card" style="display:none">
+          <div class="card-label">Transition log</div>
+          <div class="history" id="history"></div>
+        </section>
+
+        <!-- Placeholder -->
+        <div class="placeholder" id="placeholder">
+          <div class="placeholder-icon">δ</div>
+          <p>Build your automaton on the left,<br/>then simulate here.</p>
+        </div>
+
+      </div>
+    </div>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
